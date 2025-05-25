@@ -273,6 +273,115 @@ def get_lap_times_for_session(session_key, drivers):
     full_df.to_csv(laps_path, index=False)
     return full_df
 
+def get_team_radio_from_api(session_key, driver_number=None):
+    """
+    Fetches team radio data directly from the OpenF1 API.
+    Can filter by driver_number. Enriches data with session and driver names.
+    """
+    try:
+        url = "https://api.openf1.org/v1/team_radio"
+        params = {"session_key": session_key}
+        if driver_number:
+            params["driver_number"] = driver_number
+
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        radio_data = response.json()
+
+        if isinstance(radio_data, dict): # Ensure it's a list
+            radio_data = [radio_data]
+
+        # Enrich data with driver name and session name for display
+        all_sessions = get_all_sessions()
+        session_info = next((s for s in all_sessions if s['session_key'] == session_key), None)
+        session_name = session_info['session_name'] if session_info else 'Unknown Session'
+
+        all_drivers = get_drivers_data(session_key)
+        driver_map = {d['driver_number']: d['broadcast_name'] for d in all_drivers}
+
+        for radio_msg in radio_data:
+            radio_msg['session_name'] = session_name
+            dr_num = radio_msg.get('driver_number')
+            radio_msg['driver_name'] = driver_map.get(dr_num, f"Driver {dr_num}") if dr_num else 'Unknown Driver'
+            # Format date for display
+            if 'date' in radio_msg and radio_msg['date']:
+                try:
+                    dt_object = datetime.fromisoformat(radio_msg['date'].replace('Z', '+00:00'))
+                    radio_msg['formatted_date'] = dt_object.strftime('%Y-%m-%d %H:%M:%S UTC')
+                except ValueError:
+                    radio_msg['formatted_date'] = radio_msg['date'] # Fallback
+            else:
+                radio_msg['formatted_date'] = 'N/A'
+
+        return radio_data
+    except Exception as e:
+        print(f"Error fetching team radio from API for session {session_key}, driver {driver_number}: {e}")
+        traceback.print_exc()
+        return []
+
+
+def get_team_radio_data(session_key, driver_number=None):
+    """
+    Retrieves team radio data, prioritizing CSV.
+    This function is for historical data; it fetches from API and saves to CSV if not found.
+    """
+    radio_path = os.path.join(DATA_DIR, f"radio_{session_key}.csv")
+
+    if os.path.exists(radio_path):
+        try:
+            df = pd.read_csv(radio_path)
+            # Convert back to list of dicts
+            radio_data = df.to_dict("records")
+            # Ensure data is enriched if loaded from CSV (e.g., if columns were missing)
+            all_sessions = get_all_sessions()
+            session_info = next((s for s in all_sessions if s['session_key'] == session_key), None)
+            session_name = session_info['session_name'] if session_info else 'Unknown Session'
+
+            all_drivers = get_drivers_data(session_key)
+            driver_map = {d['driver_number']: d['broadcast_name'] for d in all_drivers}
+
+            for radio_msg in radio_data:
+                radio_msg['session_name'] = session_name
+                dr_num = radio_msg.get('driver_number')
+                radio_msg['driver_name'] = driver_map.get(dr_num, f"Driver {dr_num}") if dr_num else 'Unknown Driver'
+                if 'date' in radio_msg and radio_msg['date']:
+                    try:
+                        dt_object = datetime.fromisoformat(radio_msg['date'].replace('Z', '+00:00'))
+                        radio_msg['formatted_date'] = dt_object.strftime('%Y-%m-%d %H:%M:%S UTC')
+                    except ValueError:
+                        radio_msg['formatted_date'] = radio_msg['date'] # Fallback
+                else:
+                    radio_msg['formatted_date'] = 'N/A'
+
+            if driver_number:
+                radio_data = [r for r in radio_data if r.get('driver_number') == driver_number]
+
+            return radio_data
+        except Exception as e:
+            print(f"Error reading radio CSV for session {session_key}: {e}")
+            traceback.print_exc()
+            pass # Fall through to API fetch
+
+    # If CSV not found or failed, fetch from API and save
+    radio_data_from_api = get_team_radio_from_api(session_key) # Fetch all for session to cache
+    if radio_data_from_api:
+        df = pd.DataFrame(radio_data_from_api)
+        # Drop columns that might cause issues or are not needed for CSV cache
+        df_to_save = df.drop(columns=['session_name', 'driver_name', 'formatted_date'], errors='ignore')
+        df_to_save.to_csv(radio_path, index=False)
+
+    if driver_number and radio_data_from_api:
+        return [r for r in radio_data_from_api if r.get('driver_number') == driver_number]
+    return radio_data_from_api
+
+
+def get_live_team_radio_data(session_key, driver_number=None):
+    """
+    Fetches live team radio data directly from the API without CSV interaction.
+    """
+    return get_team_radio_from_api(session_key, driver_number)
+
+
 
 # --- Flask Routes ---
 @app.route("/")
@@ -361,6 +470,49 @@ def driver_laps():
         laps_data = driver_laps[columns_to_display].to_dict("records")
 
         return jsonify({"laps": laps_data})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/team_radio_data", methods=["POST"])
+def team_radio_data():
+    """
+    API endpoint to get team radio data.
+    This endpoint handles historical data (CSV caching).
+    """
+    session_key = request.form.get("session_key")
+    driver_number = request.form.get("driver_number") # Optional driver filter
+    if not session_key:
+        return jsonify({"error": "Missing session key."}), 400
+
+    try:
+        session_key = int(session_key)
+        driver_number = int(driver_number) if driver_number else None
+
+        radio_messages = get_team_radio_data(session_key, driver_number)
+        return jsonify({"radio_messages": radio_messages})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/live_team_radio_data", methods=["POST"])
+def live_team_radio_data():
+    """
+    API endpoint to get live team radio data directly from the API.
+    This endpoint is for polling during live sessions.
+    """
+    session_key = request.form.get("session_key")
+    driver_number = request.form.get("driver_number") # Optional driver filter
+    if not session_key:
+        return jsonify({"error": "Missing session key."}), 400
+
+    try:
+        session_key = int(session_key)
+        driver_number = int(driver_number) if driver_number else None
+
+        radio_messages = get_live_team_radio_data(session_key, driver_number)
+        return jsonify({"radio_messages": radio_messages})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500

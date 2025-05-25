@@ -15,7 +15,7 @@ DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
 SEASON = 0
-ROUND = 0
+ROUND = 8
 
 def get_current_f1_round_number(season=None):
 
@@ -65,11 +65,11 @@ def get_current_f1_round_number(season=None):
 
 if __name__ == "__main__":
     round_num, current_season = get_current_f1_round_number()
-
-    if round_num is None:
-        round_num = 0
     SEASON = current_season
     ROUND = round_num
+    if round_num is None:
+        round_num = 0
+    
 #round_num je cislo kola, current_season je aktualny rok sezony
     
 

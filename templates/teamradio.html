@@ -22,7 +22,7 @@
             // Select DOM elements using jQuery
             const sessionSelect = $('#session_select');
             const driverSelect = $('#driver_select');
-            const radioContainer = $('#radio-container');
+            const radioContainer = $('#lap-table-container');
             const loadingSpinner = $('#loading');
             const errorMessageDiv = $('#error-message');
             const infoMessageDiv = $('#info-message');
@@ -294,29 +294,36 @@
             }
 
             /**
-             * Displays team radio messages in the container.
-             * @param {Array<object>} radioMessages - An array of radio message objects.
-             */
-            function displayTeamRadio(radioMessages) {
-                let htmlContent = '';
-                if (radioMessages && Array.isArray(radioMessages) && radioMessages.length > 0) {
-                    // Sort messages by date, newest first
-                    radioMessages.sort((a, b) => new Date(b.date) - new Date(a.date));
+ * Displays team radio messages in the container as a table.
+ * @param {Array<object>} radioMessages - An array of radio message objects.
+ */
+function displayTeamRadio(radioMessages) {
+    let htmlContent = '';
+    if (radioMessages && Array.isArray(radioMessages) && radioMessages.length > 0) {
+        radioMessages.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-                    radioMessages.forEach(msg => {
-                        htmlContent += `
-                            <div class="radio-message-card">
-                                <h5>${msg.driver_name} (${msg.driver_number}) - ${msg.session_name}</h5>
-                                <p><strong>Date:</strong> ${msg.formatted_date || 'N/A'}</p>
-                                ${msg.recording_url ? `<audio controls src="${msg.recording_url}">Your browser does not support the audio element.</audio>` : '<p>No recording available.</p>'}
-                            </div>
-                        `;
-                    });
-                } else {
-                    htmlContent = '<p class="text-muted">No team radio messages to display for the selected criteria.</p>';
-                }
-                radioContainer.html(htmlContent);
+        htmlContent += '<table>'; // Added table-sm
+        htmlContent += '<thead><tr><th>Date and Time</th><th>Driver Name</th><th>Session Name</th><th>Radio</th></tr></thead><tbody>';
+
+        radioMessages.forEach(msg => {
+            htmlContent += '<tr>';
+            htmlContent += `<td>${msg.formatted_date || 'N/A'}</td>`;
+            htmlContent += `<td>${msg.driver_name}</td>`;
+            htmlContent += `<td>${msg.session_name}</td>`;
+            if (msg.recording_url) {
+                htmlContent += `<td><audio controls src="${msg.recording_url}"></audio></td>`;
+            } else {
+                htmlContent += '<td>No recording</td>';
             }
+            htmlContent += '</tr>';
+        });
+
+        htmlContent += '</tbody></table>';
+    } else {
+        htmlContent = '<p class="text-muted">No team radio.</p>';
+    }
+    radioContainer.html(htmlContent);
+}
 
             // Event listener for session selection change
             sessionSelect.on('change', async function() { // Added async here
@@ -407,7 +414,7 @@
             <span class="ms-2">Loading team radio...</span>
         </div>
 
-        <div id="radio-container" class="radio-container"></div>
+        <div id="lap-table-container" class="lap-table-container"></div>
     </div>
 
 </body>
