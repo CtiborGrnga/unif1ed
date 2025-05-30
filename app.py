@@ -15,7 +15,7 @@ DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
 SEASON = 0
-ROUND = 8
+ROUND = 0
 
 def get_current_f1_round_number(season=None):
 
@@ -88,6 +88,23 @@ def get_drivers_standings(season=SEASON, round=ROUND):
         traceback.print_exc()
         return pd.DataFrame()
 
+def get_latest_session_key():
+    try:
+        url = "https://api.openf1.org/v1/sessions"
+        response = requests.get(url)
+        response.raise_for_status()
+        sessions = response.json()
+        valid_sessions = [s for s in sessions if s.get("session_key") is not None]
+        if not valid_sessions:
+            return None
+        # Zoradíme podľa dátumu a vrátime najnovšiu session_key
+        valid_sessions.sort(key=lambda x: x.get("date", ""), reverse=True)
+        return valid_sessions[0].get("session_key")
+    except Exception as e:
+        print(f"Error fetching latest session: {e}")
+        traceback.print_exc()
+        return None
+
 
 def calculate_max_points_for_remaining_season(season=SEASON, round=ROUND):
     """Calculates the maximum points possible in the remaining season."""
@@ -139,7 +156,7 @@ def format_lap_time(seconds):
         return str(seconds)
 
 
-def get_all_sessions():
+def get_all_sessions(exclude_latest=False):
     try:
         url = "https://api.openf1.org/v1/sessions"
         response = requests.get(url)
@@ -154,12 +171,20 @@ def get_all_sessions():
                 s["location"] = s.get("location", "Unknown Location")
                 s["date"] = s.get("date", "")
                 valid_sessions.append(s)
+
+        # Zoradiť sessions podľa dátumu (najnovšie ako prvé)
         valid_sessions.sort(key=lambda x: x.get("date", ""), reverse=True)
+
+        # ❗ Odstrániť najnovšiu session, ak je žiadané
+        if exclude_latest and valid_sessions:
+            valid_sessions = valid_sessions[1:]
+
         return valid_sessions
     except Exception as e:
         print(f"Error fetching sessions: {e}")
         traceback.print_exc()
         return []
+
 
 
 def get_drivers_data(session_key):
@@ -381,22 +406,76 @@ def get_live_team_radio_data(session_key, driver_number=None):
     """
     return get_team_radio_from_api(session_key, driver_number)
 
+def get_qualifying_results(session_key):
+    """Gets and formats qualifying results for a given session."""
+    try:
+        url_laps = "https://api.openf1.org/v1/laps"
+        url_drivers = "https://api.openf1.org/v1/drivers"
+        params = {"session_key": session_key}
 
+        # Fetch laps data
+        response_laps = requests.get(url_laps, params=params)
+        response_laps.raise_for_status()
+        laps_data = response_laps.json()
+        df_laps = pd.DataFrame(laps_data)
+        df_laps = df_laps[df_laps['lap_duration'].notna()]  # Filter out laps without time
+
+        # Fetch drivers data
+        response_drivers = requests.get(url_drivers, params=params)
+        response_drivers.raise_for_status()
+        drivers_data = response_drivers.json()
+        driver_map = {str(d['driver_number']): d for d in drivers_data}
+
+        # Get fastest lap for each driver
+        fastest_laps = df_laps.groupby('driver_number')['lap_duration'].min().reset_index()
+
+        # Add driver names and team names
+        fastest_laps['Driver'] = fastest_laps['driver_number'].apply(
+            lambda x: f"{driver_map[str(x)]['first_name']} {driver_map[str(x)]['last_name']}")
+        fastest_laps['Team'] = fastest_laps['driver_number'].apply(
+            lambda x: driver_map[str(x)]['team_name'])
+
+        # Sort by lap time
+        fastest_laps = fastest_laps.sort_values(by='lap_duration').reset_index(drop=True)
+
+        # Format lap times for display
+        fastest_laps['LapTime'] = fastest_laps['lap_duration'].apply(format_lap_time)  # Reuse your existing format_lap_time
+
+        return fastest_laps.to_dict(orient='records')
+
+    except Exception as e:
+        print(f"Error fetching qualifying results: {e}")
+        traceback.print_exc()
+        return []
 
 # --- Flask Routes ---
 @app.route("/")
 def index():
-    """Renders the index page with WDC standings."""
-    try:
-        driver_standings_df = get_drivers_standings()
-        max_points = calculate_max_points_for_remaining_season()
-        standings_with_win_df = calculate_who_can_win(driver_standings_df, max_points)
-        standings_data = standings_with_win_df.to_dict(orient='records')  # Convert DataFrame to list of dicts
-        return render_template("index.html", standings=standings_data)
-    except Exception as e:
-        print(f"Error calculating WDC standings for index: {e}")
-        traceback.print_exc()
-        return render_template("index.html", error="Failed to load WDC standings."), 500
+    """Renders the index page with WDC standings, attempting to gracefully handle errors with ROUND."""
+    current_round = ROUND  # Store the original ROUND value
+    error_message = None
+
+    for attempt in range(2):  # Try twice: once with ROUND, once with ROUND - 1
+        try:
+            driver_standings_df = get_drivers_standings(round=current_round)
+            if driver_standings_df.empty:
+                raise ValueError(f"No driver standings data available for round {current_round}.")
+
+            max_points = calculate_max_points_for_remaining_season(round=current_round)
+            standings_with_win_df = calculate_who_can_win(driver_standings_df, max_points)
+            standings_data = standings_with_win_df.to_dict(orient='records')
+            return render_template("index.html", standings=standings_data)
+
+        except Exception as e:
+            print(f"Error fetching standings for round {current_round}: {e}")
+            traceback.print_exc()
+            error_message = f"Failed to load WDC standings for round {current_round}."
+            if attempt == 0 and current_round > 1:  # Only try ROUND - 1 if it's not the first round
+                current_round -= 1
+            else:
+                break  # Exit the loop if the second attempt fails or ROUND is 1
+
+    return render_template("index.html", error=error_message), 500
 
 
 @app.route("/laps")
@@ -413,9 +492,38 @@ def wdc_standings():
     """This route is no longer the primary WDC display."""
     return render_template("message.html", message="WDC Standings are now displayed on the home page.")
 
+@app.route("/live")
+def live_page():
+    # Získaj najnovšiu session z API
+    try:
+        url = "https://api.openf1.org/v1/sessions"
+        response = requests.get(url)
+        response.raise_for_status()
+        sessions = response.json()
+        valid_sessions = [s for s in sessions if s.get("session_key") is not None]
+        valid_sessions.sort(key=lambda x: x.get("date", ""))  # najnovšia bude posledná
+        latest = valid_sessions[-1] if valid_sessions else None
+        
+        session_key = latest.get("session_key") if latest else None
+        qualifying_results = get_qualifying_results(session_key) if session_key else []
+        
+        return render_template("live.html", latest_session=latest, qualifying_results=qualifying_results)
+    except Exception as e:
+        traceback.print_exc()
+        return render_template("live.html", latest_session=None, qualifying_results=[], error="Nepodarilo sa načítať dáta.")
+
+
 
 @app.route("/get_sessions", methods=["GET"])
 def get_sessions_api():
+    sessions = get_all_sessions()
+    if sessions:
+        # odstráni poslednú session (ktorá bude v HTML ako prvá – najnovšia)
+        sessions = sessions[:-1]
+    return jsonify({"sessions": sessions})
+
+@app.route("/get_sessions_for_radio", methods=["GET"])
+def get_sessions_for_radio_api():
     sessions = get_all_sessions()
     return jsonify({"sessions": sessions})
 
@@ -516,6 +624,79 @@ def live_team_radio_data():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/live_drivers", methods=["GET"])
+def live_drivers():
+    try:
+        # Najnovšia session
+        url = "https://api.openf1.org/v1/sessions"
+        response = requests.get(url)
+        response.raise_for_status()
+        sessions = response.json()
+        valid = [s for s in sessions if s.get("session_key") is not None]
+        valid.sort(key=lambda x: x.get("date", ""))
+        latest = valid[-1]
+        session_key = latest.get("session_key")
+
+        # Live dáta jazdcov
+        url = "https://api.openf1.org/v1/drivers"
+        drivers_response = requests.get(url, params={"session_key": session_key})
+        drivers_response.raise_for_status()
+        drivers = drivers_response.json()
+
+        unique = {}
+        for d in drivers:
+            if 'driver_number' in d:
+                unique[d['driver_number']] = d
+
+        return jsonify({"session_key": session_key, "drivers": list(unique.values())})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/live_laps", methods=["POST"])
+def live_laps():
+    try:
+        session_key = request.form.get("session_key")
+        driver_number = request.form.get("driver_number")
+
+        if not session_key or not driver_number:
+            return jsonify({"error": "Chýba session_key alebo driver_number"}), 400
+
+        url = "https://api.openf1.org/v1/laps"
+        params = {"session_key": session_key, "driver_number": driver_number}
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        laps = response.json()
+
+        processed = []
+        for lap in laps:
+            # Výpočet lap_time
+            lap_time = "N/A"
+            try:
+                sec = float(lap.get("lap_duration", 0))
+                minutes = int(sec // 60)
+                rem_sec = sec % 60
+                lap_time = f"{minutes}:{rem_sec:06.3f}"
+            except:
+                pass
+
+            processed.append({
+                "lap_number": lap.get("lap_number"),
+                "lap_time": lap_time,
+                "duration_sector_1": lap.get("duration_sector_1"),
+                "duration_sector_2": lap.get("duration_sector_2"),
+                "duration_sector_3": lap.get("duration_sector_3"),
+                "is_pit_out_lap": lap.get("is_pit_out_lap"),
+                "st_speed": lap.get("st_speed"),
+            })
+
+        return jsonify({"laps": processed})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 
 
 if __name__ == "__main__":
