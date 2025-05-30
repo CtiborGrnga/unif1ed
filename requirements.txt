@@ -1,0 +1,10 @@
+fastf1.events
+flask
+os
+requests
+pandas
+datetime
+traceback
+numpy
+fastf1
+fastf1.ergast
