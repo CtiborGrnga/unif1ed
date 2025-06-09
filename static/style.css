@@ -1,0 +1,441 @@
+body {
+        background-color: #545454;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-align: center;
+        color: #333;
+    }
+
+    .container {
+        max-width: 1200px;
+        background-color: #7e7e7e;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    }
+
+.logo-img {
+    height: 150px; /* Alebo akákoľvek iná veľkosť, ktorú chcete */
+    max-width: 100%; /* Zabezpečí, že obrázok nepresiahne šírku rodičovského prvku */
+    margin-top: 10px;
+}
+
+    .logo_white,
+    .logo_red {
+        font-size: 90px;
+        font-family: 'Montserrat', sans-serif;
+        font-style: italic;
+        font-weight: 700;
+        text-shadow: -1px -1px 3px #303030,
+        1px -1px 3px #303030,
+        -1px 1px 3px #303030,
+        1px 1px 3px #303030;
+        display: inline-block;
+    }
+
+    .logo_white {
+        color: #cecece;
+    }
+
+    .logo_red {
+        color: #a81309;
+    }
+
+    .lap-table-container {
+        margin-top: 30px;
+        max-height: 600px;
+        overflow-y: auto;
+        border: 1px solid #555;
+        border-radius: 8px;
+        text-align: center;
+        background-color: #444;
+        color: #fff;
+    }
+
+    .navbar {
+        
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (min-width: 992px) {
+        .navbar-nav {
+            justify-content: center;
+            width: 100%;
+        }
+        .nav-item {
+            margin-left: 1rem;
+            margin-right: 1rem;
+        }
+    }
+
+    table {
+        margin-bottom: 0;
+        width: 100%;
+        text-align: center;
+        background-color: #797979;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        background-color: #555;
+        text-transform: uppercase;
+        z-index: 10;
+        padding: 12px 15px;
+        text-align: center;
+        border-bottom: 2px solid #333333;
+    }
+
+    tbody td {
+        padding: 10px 15px;
+        border-bottom: 1px solid #3d3d3d;
+        text-align: center;
+    }
+
+    .loading-spinner {
+        display: none;
+        margin-top: 20px;
+        text-align: center;
+        color: #0049cf;
+    }
+
+    .error-message {
+        color: #dc3545;
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #ffe0e0;
+        border-radius: 5px;
+        border: 1px solid #dc3545;
+        display: none;
+        text-align: center;
+        font-weight: bold; /* Added from style.css */
+    }
+
+    .info-message {
+        color: #198754;
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #d1e7dd;
+        border-radius: 5px;
+        border: 1px solid #198754;
+        display: none;
+        text-align: center;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+        text-align: center;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        background-color: #3b3b3b;
+        border: 1px solid #555;
+        border-radius: 8px;
+        padding: 5px;
+    }
+
+    .form-select {
+        margin-bottom: 0;
+        border-radius: 5px;
+        padding: 8px 12px;
+        text-align: center;
+        background-color: #555;
+        color: #ffffff;
+        border: 1px solid #555;
+    }
+
+    .form-select option {
+        background-color: #555;
+    }
+
+    .session-select-container {
+        margin-bottom: 20px;
+        text-align: center;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        background-color: #3b3b3b;
+        border: 1px solid #555;
+        border-radius: 8px;
+        padding: 5px;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 15px;
+        }
+
+        thead th,
+        tbody td {
+            padding: 8px 10px;
+        }
+    }
+
+    .table-striped > tbody > tr:nth-of-type(odd) {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: #fff !important;
+    }
+
+    .table-striped > tbody > tr:nth-of-type(even) {
+        background-color: transparent !important;
+        color: #fff !important;
+    }
+
+    /* Table styles for WDC Standings */
+    .wdc-standings {
+        margin-top: 30px;
+    }
+
+    .wdc-table {
+        width: 90%;
+        max-width: 800px;
+        margin: 20px auto;
+        border-collapse: collapse;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        background-color: #6e6e6e;
+        color: #cecece;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .wdc-table th,
+    .wdc-table td {
+        padding: 12px 15px;
+        text-align: center;
+        border-bottom: 1px solid #555;
+    }
+
+    .wdc-table th {
+        background-color: #303030;
+        font-weight: bold;
+        color: #f2f2f2;
+        text-transform: uppercase;
+        font-size: 0.9em;
+    }
+
+    .wdc-table tr:nth-child(even) {
+        background-color: #575757;
+    }
+
+    .wdc-table tr:hover {
+        background-color: #5a1f1f;
+    }
+
+    .wdc-table .can-win-yes {
+        color: #7FFF00;
+        font-weight: bold;
+    }
+
+    .wdc-table .can-win-no {
+        color: #FF6347;
+    }
+
+    .wdc-standings_title {
+        width: 90%;
+        max-width: 800px;
+        margin: 20px auto;
+        border-collapse: collapse;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        background-color: #303030;
+        color: #cecece;
+        border-radius: 9px;
+        overflow: hidden;
+    }
+    .radio-message-card {
+            background-color: #333;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            color: #eee;
+        }
+        .radio-message-card h5 {
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .radio-message-card p {
+            font-size: 0.9em;
+            color: #bbb;
+            margin-bottom: 5px;
+        }
+        .radio-message-card audio {
+            width: 100%;
+            margin-top: 10px;
+            background-color: #555;
+            border-radius: 5px;
+        }
+
+ /* Footer styles */
+.main-footer {
+    background-color: #333; /* Tmavo sivá farba pozadia */
+    color: #cecece;
+    padding: 20px 0;
+    margin-top: 50px; /* Pridajte priestor medzi obsahom a pätou */
+    text-align: center;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.5); /* Tieň nad pätou */
+    width: 100%; /* Rozšíri na celú šírku */
+    box-sizing: border-box; /* Zabezpečí, že padding nebude pridávať k šírke */
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.footer-logo {
+    height: 20%; 
+    width: 20%;
+    max-width: 80%;
+    margin-bottom: 2px; 
+    border-radius: 0;
+}
+
+.footer-links {
+    display: flex;
+    gap: 15px; /* Priestor medzi odkazmi */
+    font-size: 0.9em;
+    margin-bottom: 5px; /* Priestor pod linkami a nad tagline */
+}
+
+.footer-link {
+    color: #cecece; /* Farba textu odkazu */
+    text-decoration: none; /* Odstráni podčiarknutie */
+    transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+    color: #a81309; /* Farba pri nabehnutí myšou, môžete použiť vašu červenú */
+}
+
+.link-separator {
+    color: #555; /* Farba oddeľovača */
+}
+
+.footer-tagline {
+    font-size: 0.8em; /* Menšia veľkosť písma pre tagline */
+    color: #bbb; /* Trochu svetlejšia farba pre tagline */
+    margin-top: 0;
+    margin-bottom: 0; /* Odstráni defaultné marginy pre p tag */
+}
+
+/* Prípadne, ak už máte existujúce .logo-img, upravte ho */
+.logo-img {
+    height: 120px; /* Pôvodná výška loga pre header */
+    max-width: 70%; 
+    margin-top: 10px;
+}
+.circuit-image {
+    max-width: 100%; /* Zabezpečí, že obrázok nebude pretekať z kontajnera */
+    height: auto;    /* Zachová pomer strán obrázka */
+    margin-top: 5px; /* Priestor nad obrázkom */
+    margin-bottom: 5px; /* Priestor pod obrázkom */
+    border-radius: 2px; /* Jemné zaoblenie rohov */
+    
+}
+/* --- Nové štýly pre LIVE.HTML Rozloženie --- */
+
+/* Hlavný wrapper pre rozloženie Live stránky */
+.live-layout-wrapper {
+    display: flex;
+    flex-direction: column; /* Predvolene na mobilných zariadeniach budú stĺpce pod sebou */
+    align-items: center; /* Centrovanie pre mobilné zariadenia */
+    gap: 30px; /* Medzera medzi stĺpcami/riadkami */
+    padding: 20px 0; /* Vnútorný padding */
+    width: 100%; /* Zaberá celú šírku rodičovského .container */
+}
+
+/* Ľavý stĺpec (Session Info + Select Driver) */
+.live-left-column {
+    width: 100%; /* Na mobile zaberá celú šírku */
+    text-align: left; /* Centrovanie obsahu na mobile */
+    
+}
+
+/* Pravý stĺpec (Lap Time Table) */
+.live-right-column {
+    width: 100%; /* Na mobile zaberá celú šírku */
+    text-align: center; /* Centrovanie obsahu na mobile */
+}
+
+/* Kontajner pre Session info a obrázok (vnútri .live-left-column) */
+.session-info-group {
+    margin-bottom: 20px; /* Medzera pod session info a obrázkom */
+}
+
+/* Štýly pre Select Driver - zabezpečiť centrovanie na mobile a v ľavom stĺpci */
+.driver-select-group {
+    /* Uistite sa, že label a select sú blokové prvky pre správne margin: auto */
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centrovať obsah driver select group */
+    margin-bottom: 20px; /* Priestor pod select boxom */
+}
+.driver-select-group label {
+    margin-bottom: 5px; /* Priestor medzi labelom a selectom */
+}
+.driver-select-group .form-select {
+    width: auto; /* Automatická šírka pre select box */
+    max-width: 250px; /* Príklad: obmedzte šírku select boxu */
+    margin: 0 auto; /* Centruje select box */
+    /* Zvyšok existujúcich štýlov pre form-select by mal platiť */
+}
+
+/* MEDIA QUERY PRE PC ROZLOŽENIE (väčšie obrazovky) */
+@media (min-width: 1100px) { /* Pre PC a väčšie tablety (Bootstrap 'lg' breakpoint) */
+    .live-layout-wrapper {
+        flex-direction: row; /* Rozloženie do riadku na PC */
+        justify-content: space-between; /* Rozloží stĺpce na šírku s priestorom medzi nimi */
+        align-items: flex-start; /* Zarovnanie stĺpcov na začiatok (hore) */
+        gap: 1%; /* Väčšia medzera medzi stĺpcami na PC */
+    }
+
+    .live-left-column {
+        margin-left: 8%;
+        flex: 1; /* Zaberá 1 diel z dostupného priestoru (prispôsobte podľa potreby) */
+        min-width: 500px; /* Minimálna šírka pre ľavý stĺpec */
+        max-width: 50%; /* Príklad: max 40% šírky */
+        text-align: left; /* Text zarovnaný doľava */
+    }
+    
+    .live-right-column {
+        margin-right: 8%;
+        flex: 2; /* Zaberá 2 diely z dostupného priestoru (Lap Table bude širšia) */
+        min-width: 500px; /* Minimálna šírka pre pravý stĺpec */
+        max-width: 50%; /* Príklad: max 60% šírky */
+        text-align: center; /* Lap Table zostane centrovaná v rámci svojho stĺpca */
+    }
+
+    /* Prvky v ľavom stĺpci zarovnať doľava */
+    .session-info-group {
+        text-align: left; /* Text session info doľava */
+    }
+    .session-info-group p {
+        text-align: left; /* Uistite sa, že aj P tag je zarovnaný doľava */
+    }
+    .circuit-image {
+        display: block; /* Zabezpečí, že obrázok bude blokový element */
+        margin-left: 0; /* Prilepí ho doľava */
+        margin-right: auto; /* Stále umožní automatické centrum na menších obrazovkách */
+    }
+
+    /* Select driver v ľavom stĺpci zarovnáme doľava, ale select box samotný ostane centrovaný */
+    .driver-select-group {
+        align-items: flex-start; /* Zarovná obsah skupiny doľava */
+    }
+    .driver-select-group label {
+        align-self: flex-start; /* Label zarovnať doľava */
+    }
+    .driver-select-group .form-select {
+        margin-left: 0; /* Zabezpečí, že select box bude prilepený doľava */
+        margin-right: auto;
+    }
+
+    /* Lap Table v pravom stĺpci - zachovať centrovanie */
+    #lap-table-container {
+        /* Defaultne by mala byť centrovaná, ak má max-width */
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+

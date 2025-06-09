@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unif1ed - F1 data</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <a href="{{ url_for('index') }}">
+    <img src="{{ url_for('static', filename='logo_main.png') }}" alt="Unif1ed Logo" class="logo-img">
+</a>
+    
+</head>
+    <body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Select DOM elements using jQuery
+            const sessionSelect = $('#session_select');
+            const driverSelect = $('#driver_select');
+            const lapTableContainer = $('#lap-table-container');
+            const loadingSpinner = $('#loading');
+            const errorMessageDiv = $('#error-message');
+            const infoMessageDiv = $('#info-message'); // Corrected ID here
+
+            /**
+             * Displays the loading spinner and clears previous messages/data.
+             */
+            function showLoading() {
+                loadingSpinner.show();
+                lapTableContainer.empty();
+                errorMessageDiv.hide();
+                infoMessageDiv.hide();
+            }
+
+            /**
+             * Hides the loading spinner.
+             */
+            function hideLoading() {
+                loadingSpinner.hide();
+            }
+
+            /**
+             * Displays an error message to the user.
+             * @param {string} message - The error message to display.
+             */
+            function showError(message) {
+                errorMessageDiv.text(message).show();
+                infoMessageDiv.hide();
+            }
+
+            /**
+             * Displays an informational message to the user.
+             * @param {string} message - The info message to display.
+             */
+            function showInfo(message) {
+                infoMessageDiv.text(message).show();
+                errorMessageDiv.hide();
+            }
+
+            /**
+             * A helper function to fetch JSON data from a URL with error handling.
+             * @param {string} url - The URL to fetch from.
+             * @param {object} options - Fetch API options (e.g., method, headers, body).
+             * @returns {Promise<object>} - A promise that resolves with the JSON data.
+             * @throws {Error} - Throws an error if the network request fails or response is not OK.
+             */
+            async function fetchJson(url, options = {}) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        // Attempt to read error message from response body
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error ${response.status}: ${errorText || 'Unknown error'}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`Fetch error for ${url}:`, error);
+                    throw error; // Re-throw to be caught by caller
+                }
+            }
+
+            /**
+             * Loads all available F1 sessions from the backend and populates the session dropdown.
+             */
+            async function loadSessions() {
+                showLoading();
+                try {
+                    const data = await fetchJson('/get_sessions');
+                    populateSessionDropdown(data.sessions);
+                } catch (error) {
+                    showError('Failed to load sessions. Please try again later.');
+                } finally {
+                    hideLoading();
+                }
+            }
+
+             /**
+         * Populates the session dropdown with data in reverse order (latest first).
+         * @param {Array<object>} sessions - An array of session objects.
+         */
+        function populateSessionDropdown(sessions) {
+            sessionSelect.empty();
+            sessionSelect.append('<option value="">Session</option>');
+            if (sessions && Array.isArray(sessions)) {
+                // Reverse the order of the sessions array
+                const reversedSessions = [...sessions].reverse();
+                reversedSessions.forEach(session => {
+                    const sessionKey = session.session_key;
+                    // Format the date for display
+                    const date = session.date ? new Date(session.date).toLocaleDateString() : '';
+                    const label = `${session.year} - ${session.location} - ${session.country_name} - ${session.session_name}`;
+                    sessionSelect.append(`<option value="${sessionKey}">${label}</option>`);
+                });
+            } else {
+                console.error("Invalid sessions data received by populateSessionDropdown:", sessions);
+                showError("Error loading sessions.");
+            }
+        }
+
+            /**
+             * Loads drivers for the selected session from the backend and populates the driver dropdown.
+             * This function relies on the backend to decide whether to use CSV or API.
+              @param {string} sessionKey - The key of the selected session.
+             */
+            async function loadDrivers(sessionKey) {
+                driverSelect.empty();
+                driverSelect.append('<option value="">Načítavam jazdcov...</option>');
+                driverSelect.prop('disabled', true); // Disable until loaded
+
+                try {
+                    const data = await fetchJson(`/get_drivers?session_key=${sessionKey}`);
+                    if (data && data.drivers) {
+                        populateDriverDropdown(data.drivers);
+                    } else if (data && data.error) {
+                        // If backend explicitly sent an error, display it
+                        showError(data.error);
+                        driverSelect.append('<option value="">Chyba pri načítaní</option>');
+                    } else {
+                        console.error("Invalid drivers data received from /get_drivers:", data);
+                        showError('Nepodarilo sa načítať jazdcov.');
+                        driverSelect.append('<option value="">Nepodarilo sa načítať jazdcov.</option>');
+                    }
+                } catch (error) {
+                    console.error('Error in loadDrivers fetch:', error);
+                    showError('Nepodarilo sa načítať jazdcov.');
+                    driverSelect.append('<option value="">Chyba pri načítaní</option>');
+                } finally {
+                    // Ensure dropdown is enabled if data was loaded, or remains disabled if error
+                    if (driverSelect.find('option').length > 1) { // Check if more than just the default option exists
+                        driverSelect.prop('disabled', false);
+                    }
+                }
+            }
+
+            /**
+             * Populates the driver dropdown with data.
+             * @param {Array<object>} drivers - An array of driver objects.
+             */
+            function populateDriverDropdown(drivers) {
+                driverSelect.empty();
+                driverSelect.append('<option value="">Driver</option>');
+                if (drivers && Array.isArray(drivers)) {
+                    drivers.forEach(driver => {
+                        driverSelect.append(`<option value="${driver.driver_number}">${driver.driver_number}: ${driver.broadcast_name} (${driver.team_name})</option>`);
+                    });
+                    driverSelect.prop('disabled', false); // Enable dropdown if drivers are populated
+                } else {
+                    console.error("Invalid drivers data received by populateDriverDropdown:", drivers);
+                    showError("Error loading drivers.");
+                    driverSelect.prop('disabled', true); // Keep disabled if data is invalid
+                }
+            }
+
+            /**
+             * Loads lap times for the selected session and driver from the backend.
+             * @param {string} sessionKey - The key of the selected session.
+             * @param {string} driverNumber - The number of the selected driver.
+             */
+            async function loadDriverLaps(sessionKey, driverNumber) {
+                if (!sessionKey || !driverNumber) {
+                    showError('Session a jazdec musia byť vybraté.');
+                    return;
+                }
+
+                showLoading();
+
+                try {
+                    const formData = new FormData();
+                    formData.append('session_key', sessionKey);
+                    formData.append('driver_number', driverNumber);
+
+                    const data = await fetchJson('/driver_laps', {
+                        method: 'POST',
+                        body: new URLSearchParams(formData).toString(), // Correctly format for x-www-form-urlencoded
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                    });
+
+                    if (data && data.laps) {
+                        if (data.laps.length === 0) {
+                            showInfo('No lap times found for this driver.');
+                            displayLapTimes([]);
+                        } else {
+                            displayLapTimes(data.laps);
+                        }
+                    } else if (data && data.error) {
+                        showError(`Error loading lap times: ${data.error}`);
+                        displayLapTimes([]); // Clear table on error
+                    } else {
+                        console.error("Invalid lap times data received:", data);
+                        showError('Unexpected response when loading lap times.');
+                        displayLapTimes([]); // Clear table on error
+                    }
+                } catch (error) {
+                    console.error('Error in loadDriverLaps fetch:', error);
+                    showError(error.message || 'Unexpected error while loading lap times.');
+                    displayLapTimes([]); // Clear table on error
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            /**
+             * Displays lap times in a formatted HTML table.
+             * @param {Array<object>} laps - An array of lap objects.
+             */
+            function displayLapTimes(laps) {
+    let tableHTML = '';
+    if (laps && Array.isArray(laps) && laps.length > 0) {
+        tableHTML += '<table>';
+        tableHTML += '<thead><tr>';
+
+        // Define the desired column order
+        const displayOrder = [
+    "lap_number",
+    "lap_time",
+    "duration_sector_1",
+    "duration_sector_2",
+    "duration_sector_3",
+    "is_pit_out_lap",
+    "st_speed"
+];
+
+
+        // Define columns to exclude from display
+        const columnsToExclude = [
+            'date_start', 'driver_number', 'i1_speed', 'i2_speed', 'meeting_key',
+            'segment_sector_1', 'segment_sector_2', 'segment_sector_3',
+            'session_key',
+            // Additional exclusions as requested:
+            'segments_sector_1', 'segments_sector_2', 'segments_sector_3'
+        ];
+
+        // Get all column keys from the first lap and filter out excluded ones
+        let allColumns = Object.keys(laps[0]).filter(col =>
+            col !== 'lap_duration' && !columnsToExclude.includes(col)
+        );
+
+        // Create the final ordered list of columns to display
+        let columnsToDisplay = [];
+        displayOrder.forEach(col => {
+            if (allColumns.includes(col)) {
+                columnsToDisplay.push(col);
+                // Remove from allColumns to avoid duplicates in the next step
+                allColumns = allColumns.filter(c => c !== col);
+            }
+        });
+
+        // Add the remaining columns that are not in the displayOrder
+        allColumns.forEach(col => {
+            columnsToDisplay.push(col);
+        });
+
+        columnsToDisplay.forEach(col => {
+            const headerText = col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            tableHTML += `<th>${headerText}</th>`;
+        });
+        tableHTML += '</tr></thead><tbody>';
+
+        laps.forEach(lap => {
+            tableHTML += '<tr>';
+            columnsToDisplay.forEach(col => {
+                let value = lap[col];
+                if (value === null || value === undefined) {
+                    value = 'N/A';
+                } else if (typeof value === 'boolean') {
+                    value = value ? 'Yes' : 'No';
+                }
+                tableHTML += `<td>${value}</td>`;
+            });
+            tableHTML += '</tr>';
+        });
+
+        tableHTML += '</tbody></table>';
+    } else {
+        tableHTML = '<p class="text-muted">No lap times to display for the selected driver.</p>';
+    }
+    lapTableContainer.html(tableHTML);
+}
+
+            // Event listener for session selection change
+            sessionSelect.on('change', function() {
+                const selectedSession = $(this).val();
+                if (selectedSession) {
+                    loadDrivers(selectedSession); // Load drivers for the selected session
+                    lapTableContainer.empty(); // Clear lap times
+                } else {
+                    // Reset driver dropdown and disable if no session is selected
+                    driverSelect.empty().append('<option value="">Vyber jazdca</option>').prop('disabled', true);
+                    lapTableContainer.empty(); // Clear lap times
+                    showInfo(''); // Clear any info/error messages
+                }
+            });
+
+            // Event listener for driver selection change
+            driverSelect.on('change', function() {
+                const selectedDriver = $(this).val();
+                const selectedSession = sessionSelect.val();
+                if (selectedSession && selectedDriver) {
+                    loadDriverLaps(selectedSession, selectedDriver); // Load lap times for selected driver
+                } else {
+                    lapTableContainer.empty(); // Clear lap times
+                    showInfo(''); // Clear any info/error messages
+                }
+            });
+
+            // Initial load of sessions when the page is ready
+            loadSessions();
+        });
+    </script>
+    
+    <!-- Navigation bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5 rounded-pill">
+        <div class="container-fluid">
+            <button class="navbar-toggler mx-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('live_page') }}">Live</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('laps') }}">Lap Time Table</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('teamradio') }}">Team radio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('race_control_page') }}">Race Control</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    </nav>
+    <!-- Navigation bar -->
+
+    <div class="container">
+        
+        <h2>Session lap table</h2>
+        
+        <form id="session-form" method="post">
+            <div class="session-select-container">
+                
+                <select id="session_select" name="session_key" class="form-select">
+                    <option value="">Session</option>
+                </select>
+            </div>
+        </form>
+
+        <div class="form-group">
+            
+            <select id="driver_select" class="form-select" disabled>
+                <option value="">Driver</option>
+            </select>
+        </div>
+
+        <div id="error-message" class="error-message" style="display:none;"></div>
+        <div id="info-message" class="info-message" style="display:none;"></div>
+
+        <div id="loading" class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span class="ms-2">Loading lap times...</span>
+        </div>
+
+        <div id="lap-table-container" class="lap-table-container"></div>
+    </div>
+    
+</body>
+<footer class="main-footer">
+    <div class="footer-content">
+        <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='logo_main.png') }}" alt="Unif1ed Logo" class="footer-logo">
+        </a>
+        <p class="footer-tagline">...unified F1 data</p>
+        <div class="footer-links">
+            <a href="https://openf1.org/" target="_blank" class="footer-link">OpenF1</a>
+            <span class="link-separator">|</span>
+            <a href="https://docs.fastf1.dev/" target="_blank" class="footer-link">FastF1</a>
+        </div>
+        
+    </div>
+</footer>
+</html>

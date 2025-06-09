@@ -1,0 +1,335 @@
+body {
+        background-color: #545454;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-align: center;
+        color: #333;
+    }
+
+    .container {
+        max-width: 1200px;
+        background-color: #7e7e7e;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    }
+
+.logo-img {
+    height: 150px; /* Alebo akákoľvek iná veľkosť, ktorú chcete */
+    max-width: 100%; /* Zabezpečí, že obrázok nepresiahne šírku rodičovského prvku */
+    margin-top: 10px;
+}
+
+    .logo_white,
+    .logo_red {
+        font-size: 90px;
+        font-family: 'Montserrat', sans-serif;
+        font-style: italic;
+        font-weight: 700;
+        text-shadow: -1px -1px 3px #303030,
+        1px -1px 3px #303030,
+        -1px 1px 3px #303030,
+        1px 1px 3px #303030;
+        display: inline-block;
+    }
+
+    .logo_white {
+        color: #cecece;
+    }
+
+    .logo_red {
+        color: #a81309;
+    }
+
+    .lap-table-container {
+        margin-top: 30px;
+        max-height: 600px;
+        overflow-y: auto;
+        border: 1px solid #555;
+        border-radius: 8px;
+        text-align: center;
+        background-color: #444;
+        color: #fff;
+    }
+
+    .navbar {
+        
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (min-width: 992px) {
+        .navbar-nav {
+            justify-content: center;
+            width: 100%;
+        }
+        .nav-item {
+            margin-left: 1rem;
+            margin-right: 1rem;
+        }
+    }
+
+    table {
+        margin-bottom: 0;
+        width: 100%;
+        text-align: center;
+        background-color: #797979;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        background-color: #555;
+        text-transform: uppercase;
+        z-index: 10;
+        padding: 12px 15px;
+        text-align: center;
+        border-bottom: 2px solid #333333;
+    }
+
+    tbody td {
+        padding: 10px 15px;
+        border-bottom: 1px solid #3d3d3d;
+        text-align: center;
+    }
+
+    .loading-spinner {
+        display: none;
+        margin-top: 20px;
+        text-align: center;
+        color: #0049cf;
+    }
+
+    .error-message {
+        color: #dc3545;
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #ffe0e0;
+        border-radius: 5px;
+        border: 1px solid #dc3545;
+        display: none;
+        text-align: center;
+        font-weight: bold; /* Added from style.css */
+    }
+
+    .info-message {
+        color: #198754;
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #d1e7dd;
+        border-radius: 5px;
+        border: 1px solid #198754;
+        display: none;
+        text-align: center;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+        text-align: center;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        background-color: #3b3b3b;
+        border: 1px solid #555;
+        border-radius: 8px;
+        padding: 5px;
+    }
+
+    .form-select {
+        margin-bottom: 0;
+        border-radius: 5px;
+        padding: 8px 12px;
+        text-align: center;
+        background-color: #555;
+        color: #ffffff;
+        border: 1px solid #555;
+    }
+
+    .form-select option {
+        background-color: #555;
+    }
+
+    .session-select-container {
+        margin-bottom: 20px;
+        text-align: center;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        background-color: #3b3b3b;
+        border: 1px solid #555;
+        border-radius: 8px;
+        padding: 5px;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 15px;
+        }
+
+        thead th,
+        tbody td {
+            padding: 8px 10px;
+        }
+    }
+
+    .table-striped > tbody > tr:nth-of-type(odd) {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: #fff !important;
+    }
+
+    .table-striped > tbody > tr:nth-of-type(even) {
+        background-color: transparent !important;
+        color: #fff !important;
+    }
+
+    /* Table styles for WDC Standings */
+    .wdc-standings {
+        margin-top: 30px;
+    }
+
+    .wdc-table {
+        width: 90%;
+        max-width: 800px;
+        margin: 20px auto;
+        border-collapse: collapse;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        background-color: #6e6e6e;
+        color: #cecece;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .wdc-table th,
+    .wdc-table td {
+        padding: 12px 15px;
+        text-align: center;
+        border-bottom: 1px solid #555;
+    }
+
+    .wdc-table th {
+        background-color: #303030;
+        font-weight: bold;
+        color: #f2f2f2;
+        text-transform: uppercase;
+        font-size: 0.9em;
+    }
+
+    .wdc-table tr:nth-child(even) {
+        background-color: #575757;
+    }
+
+    .wdc-table tr:hover {
+        background-color: #5a1f1f;
+    }
+
+    .wdc-table .can-win-yes {
+        color: #7FFF00;
+        font-weight: bold;
+    }
+
+    .wdc-table .can-win-no {
+        color: #FF6347;
+    }
+
+    .wdc-standings_title {
+        width: 90%;
+        max-width: 800px;
+        margin: 20px auto;
+        border-collapse: collapse;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        background-color: #303030;
+        color: #cecece;
+        border-radius: 9px;
+        overflow: hidden;
+    }
+    .radio-message-card {
+            background-color: #333;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            color: #eee;
+        }
+        .radio-message-card h5 {
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .radio-message-card p {
+            font-size: 0.9em;
+            color: #bbb;
+            margin-bottom: 5px;
+        }
+        .radio-message-card audio {
+            width: 100%;
+            margin-top: 10px;
+            background-color: #555;
+            border-radius: 5px;
+        }
+
+ /* Footer styles */
+.main-footer {
+    background-color: #333; /* Tmavo sivá farba pozadia */
+    color: #cecece;
+    padding: 20px 0;
+    margin-top: 50px; /* Pridajte priestor medzi obsahom a pätou */
+    text-align: center;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.5); /* Tieň nad pätou */
+    width: 100%; /* Rozšíri na celú šírku */
+    box-sizing: border-box; /* Zabezpečí, že padding nebude pridávať k šírke */
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.footer-logo {
+    height: 20%; 
+    width: 20%;
+    max-width: 80%;
+    margin-bottom: 2px; 
+    border-radius: 0;
+}
+
+.footer-links {
+    display: flex;
+    gap: 15px; /* Priestor medzi odkazmi */
+    font-size: 0.9em;
+    margin-bottom: 5px; /* Priestor pod linkami a nad tagline */
+}
+
+.footer-link {
+    color: #cecece; /* Farba textu odkazu */
+    text-decoration: none; /* Odstráni podčiarknutie */
+    transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+    color: #a81309; /* Farba pri nabehnutí myšou, môžete použiť vašu červenú */
+}
+
+.link-separator {
+    color: #555; /* Farba oddeľovača */
+}
+
+.footer-tagline {
+    font-size: 0.8em; /* Menšia veľkosť písma pre tagline */
+    color: #bbb; /* Trochu svetlejšia farba pre tagline */
+    margin-top: 0;
+    margin-bottom: 0; /* Odstráni defaultné marginy pre p tag */
+}
+
+/* Prípadne, ak už máte existujúce .logo-img, upravte ho */
+.logo-img {
+    height: 120px; /* Pôvodná výška loga pre header */
+    max-width: 70%; 
+    margin-top: 10px;
+}
+.circuit-image {
+    max-width: 100%; /* Zabezpečí, že obrázok nebude pretekať z kontajnera */
+    height: auto;    /* Zachová pomer strán obrázka */
+    margin-top: 15px; /* Priestor nad obrázkom */
+    margin-bottom: 15px; /* Priestor pod obrázkom */
+    border-radius: 8px; /* Jemné zaoblenie rohov */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Jemný tieň */
+}

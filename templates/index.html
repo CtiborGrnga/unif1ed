@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="sk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unif1ed - F1 data</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <a href="{{ url_for('index') }}">
+    <img src="{{ url_for('static', filename='logo_main.png') }}" alt="Unif1ed Logo" class="logo-img">
+</a>
+    
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5 rounded-pill">
+        <div class="container-fluid">
+            <button class="navbar-toggler mx-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('live_page') }}">Live</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('laps') }}">Lap Time Table</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('teamradio') }}">Team radio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('race_control_page') }}">Race Control</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    </nav>
+    
+<div class="wdc-standings">
+    <div class="wdc-standings_title">
+        <h2 style="font-size: 3vw;">2025 Driver Standings & WDC Chances</h2>
+        {% if error %}
+            <p class="error-message">{{ error }}</p>
+        {% elif standings %}
+    </div>
+            <table class="wdc-table">
+                <thead>
+                    <tr>
+                        <th>Position</th>
+                        <th>Driver</th>
+                        <th>Points</th>
+                        <th>Can Still Win WDC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for driver in standings %}
+                    <tr>
+                        <td>{{ driver.position }}</td>
+                        <td>{{ driver.givenName }} {{ driver.familyName }}</td>
+                        <td>{{ driver.points }}</td>
+                        <td class="{{ 'can-win-yes' if driver.can_win == 'Yes' else 'can-win-no' }}">
+                            {{ driver.can_win }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No WDC standings data available.</p>
+        {% endif %}
+    </div>
+</body>
+<footer class="main-footer">
+    <div class="footer-content">
+        <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='logo_main.png') }}" alt="Unif1ed Logo" class="footer-logo">
+        </a>
+        <p class="footer-tagline">...unified F1 data</p>
+        <div class="footer-links">
+            <a href="https://openf1.org/" target="_blank" class="footer-link">OpenF1</a>
+            <span class="link-separator">|</span>
+            <a href="https://docs.fastf1.dev/" target="_blank" class="footer-link">FastF1</a>
+        </div>
+        
+    </div>
+</footer>
+</html>

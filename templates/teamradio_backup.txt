@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="sk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unif1ed - F1 data</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <a href="{{ url_for('index') }}">
+    <img src="{{ url_for('static', filename='logo_main.png') }}" alt="Unif1ed Logo" class="logo-img">
+</a>
+    
+</head>
+
+<body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Select DOM elements using jQuery
+            const sessionSelect = $('#session_select');
+            const driverSelect = $('#driver_select');
+            const radioContainer = $('#lap-table-container');
+            const loadingSpinner = $('#loading');
+            const errorMessageDiv = $('#error-message');
+            const infoMessageDiv = $('#info-message');
+
+            let liveUpdateInterval = null; // To store the interval ID for live updates
+            let sessionsData = {}; // To store session details including 'is_live' status
+
+            /**
+             * Displays the loading spinner and clears previous messages/data.
+             */
+            function showLoading() {
+                loadingSpinner.show();
+                radioContainer.empty();
+                errorMessageDiv.hide();
+                infoMessageDiv.hide();
+            }
+
+            /**
+             * Hides the loading spinner.
+             */
+            function hideLoading() {
+                loadingSpinner.hide();
+            }
+
+            /**
+             * Displays an error message to the user.
+             * @param {string} message - The error message to display.
+             */
+            function showError(message) {
+                errorMessageDiv.text(message).show();
+                infoMessageDiv.hide();
+            }
+
+            /**
+             * Displays an informational message to the user.
+             * @param {string} message - The info message to display.
+             */
+            function showInfo(message) {
+                infoMessageDiv.text(message).show();
+                errorMessageDiv.hide();
+            }
+
+            /**
+             * A helper function to fetch JSON data from a URL with error handling.
+             * @param {string} url - The URL to fetch from.
+             * @param {object} options - Fetch API options (e.g., method, headers, body).
+             * @returns {Promise<object>} - A promise that resolves with the JSON data.
+             * @throws {Error} - Throws an error if the network request fails or response is not OK.
+             */
+            async function fetchJson(url, options = {}) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error ${response.status}: ${errorText || 'Unknown error'}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`Fetch error for ${url}:`, error);
+                    throw error;
+                }
+            }
+
+            /**
+             * Loads all available F1 sessions from the backend and populates the session dropdown.
+             * Stores session details, including 'is_live' status.
+             */
+            async function loadSessions() {
+                showLoading();
+                try {
+                    const data = await fetchJson('/get_sessions_for_radio');
+                    populateSessionDropdown(data.sessions);
+                } catch (error) {
+                    showError('Failed to load sessions. Please try again later.');
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            /**
+             * Populates the session dropdown with data in reverse order (latest first).
+             * Stores session details in the `sessionsData` object.
+             * @param {Array<object>} sessions - An array of session objects.
+             */
+            function populateSessionDropdown(sessions) {
+                sessionSelect.empty();
+                sessionSelect.append('<option value="">Session</option>');
+                sessionsData = {}; // Clear previous session data
+                if (sessions && Array.isArray(sessions)) {
+                    const reversedSessions = [...sessions].reverse();
+                    reversedSessions.forEach(session => {
+                        const sessionKey = session.session_key;
+                        sessionsData[sessionKey] = session; // Store session data
+                        const date = session.date ? new Date(session.date).toLocaleDateString() : '';
+                        const label = `${session.year} - ${session.location} - ${session.country_name} - ${session.session_name} (${date}) ${session.is_live ? '(Live)' : ''}`;
+                        sessionSelect.append(`<option value="${sessionKey}">${label}</option>`);
+                    });
+                } else {
+                    console.error("Invalid sessions data received by populateSessionDropdown:", sessions);
+                    showError("Error loading sessions.");
+                }
+            }
+
+            /**
+             * Loads drivers for the selected session from the backend and populates the driver dropdown.
+             * @param {string} sessionKey - The key of the selected session.
+             */
+            async function loadDrivers(sessionKey) {
+                driverSelect.empty();
+                driverSelect.append('<option value="">Načítavam jazdcov...</option>');
+                driverSelect.prop('disabled', true);
+
+                try {
+                    const data = await fetchJson(`/get_drivers?session_key=${sessionKey}`);
+                    populateDriverDropdown(data?.drivers || []);
+
+                    if (data && data.error) {
+                        showError(data.error);
+                    } else if (!data || !data.drivers) {
+                        console.error("Invalid drivers data received from /get_drivers:", data);
+                        showError('Nepodarilo sa načítať jazdcov.');
+                    }
+                } catch (error) {
+                    console.error('Error in loadDrivers fetch:', error);
+                    showError('Nepodarilo sa načítať jazdcov.');
+                    populateDriverDropdown([]);
+                } finally {
+                    if (driverSelect.find('option').length > 0) {
+                        driverSelect.prop('disabled', false);
+                    }
+                }
+            }
+
+            /**
+             * Populates the driver dropdown with data.
+             * @param {Array<object>} drivers - An array of driver objects.
+             */
+            function populateDriverDropdown(drivers) {
+                driverSelect.empty();
+                // The "Driver (All)" option is now part of the dropdown and is always added first
+                driverSelect.append('<option value="">Driver (All)</option>');
+                if (drivers && Array.isArray(drivers) && drivers.length > 0) {
+                    drivers.forEach(driver => {
+                        driverSelect.append(`<option value="${driver.driver_number}">${driver.driver_number}: ${driver.broadcast_name} (${driver.team_name})</option>`);
+                    });
+                }
+            }
+
+            /**
+             * Loads team radio messages for the selected session and driver.
+             * Handles live vs. historical data based on session status.
+             * @param {string} sessionKey - The key of the selected session.
+             * @param {string} driverNumber - The number of the selected driver (optional, null for all).
+             */
+            async function loadTeamRadio(sessionKey, driverNumber = null) {
+                if (!sessionKey) {
+                    showError('Session must be selected.');
+                    return;
+                }
+
+                showLoading();
+                stopLiveUpdates(); // Always stop any existing live update interval
+
+                const selectedSession = sessionsData[sessionKey];
+                const isSessionLive = selectedSession ? selectedSession.is_live : false;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('session_key', sessionKey);
+                    if (driverNumber) { // Only append if a specific driver is selected
+                        formData.append('driver_number', driverNumber);
+                    }
+
+                    if (isSessionLive) {
+                        showInfo('Session is live. Fetching real-time team radio...');
+                        // Start polling for live data
+                        startLiveUpdates(sessionKey, driverNumber);
+                        // Make an initial call to populate the table immediately
+                        await fetchLiveRadioAndUpdateDisplay(sessionKey, driverNumber);
+                    } else {
+                        showInfo('Session is finished. Loading historical team radio...');
+                        // Fetch historical data (which will use/create CSV on backend)
+                        const historicalData = await fetchJson('/team_radio_data', {
+                            method: 'POST',
+                            body: new URLSearchParams(formData).toString(),
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        });
+
+                        if (historicalData && historicalData.radio_messages) {
+                            if (historicalData.radio_messages.length === 0) {
+                                showInfo('No historical team radio messages found for this selection.');
+                                displayTeamRadio([]);
+                            } else {
+                                displayTeamRadio(historicalData.radio_messages);
+                            }
+                        } else if (historicalData && historicalData.error) {
+                            showError(`Error loading historical team radio: ${historicalData.error}`);
+                            displayTeamRadio([]);
+                        } else {
+                            console.error("Invalid historical team radio data received:", historicalData);
+                            showError('Unexpected response when loading historical team radio.');
+                            displayTeamRadio([]);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error in loadTeamRadio:', error);
+                    showError(error.message || 'Unexpected error while loading team radio.');
+                    displayTeamRadio([]);
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            /**
+             * Fetches live team radio data and updates the display.
+             * This function is called by startLiveUpdates and for initial live data load.
+             * @param {string} sessionKey - The key of the selected session.
+             * @param {string} driverNumber - The number of the selected driver (optional, null for all).
+             */
+            async function fetchLiveRadioAndUpdateDisplay(sessionKey, driverNumber = null) {
+                const formData = new FormData();
+                formData.append('session_key', sessionKey);
+                if (driverNumber) {
+                    formData.append('driver_number', driverNumber);
+                }
+
+                try {
+                    const liveData = await fetchJson('/live_team_radio_data', {
+                        method: 'POST',
+                        body: new URLSearchParams(formData).toString(),
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    });
+
+                    if (liveData && liveData.radio_messages && liveData.radio_messages.length > 0) {
+                        displayTeamRadio(liveData.radio_messages); // Update the display
+                        showInfo('Live team radio updates active.');
+                    } else {
+                        console.log('No new live team radio updates or session may have ended.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching live team radio updates:', error);
+                    stopLiveUpdates(); // Stop polling on error
+                    showError('Error fetching live team radio updates. Updates stopped.');
+                }
+            }
+
+            /**
+             * Starts a periodic interval to fetch live team radio updates.
+             * @param {string} sessionKey - The key of the selected session.
+             * @param {string} driverNumber - The number of the selected driver (optional, null for all).
+             */
+            function startLiveUpdates(sessionKey, driverNumber = null) {
+                stopLiveUpdates(); // Clear any existing interval before starting a new one
+
+                liveUpdateInterval = setInterval(async () => {
+                    await fetchLiveRadioAndUpdateDisplay(sessionKey, driverNumber);
+                }, 10000); // Poll every 10 seconds (adjust as needed)
+            }
+
+            /**
+             * Stops the live update interval.
+             */
+            function stopLiveUpdates() {
+                if (liveUpdateInterval) {
+                    clearInterval(liveUpdateInterval);
+                    liveUpdateInterval = null;
+                    console.log('Live updates stopped.');
+                }
+            }
+
+            /**
+ * Displays team radio messages in the container as a table.
+ * @param {Array<object>} radioMessages - An array of radio message objects.
+ */
+function displayTeamRadio(radioMessages) {
+    let htmlContent = '';
+    if (radioMessages && Array.isArray(radioMessages) && radioMessages.length > 0) {
+        radioMessages.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        htmlContent += '<table>'; // Added table-sm
+        htmlContent += '<thead><tr><th>Date and Time</th><th>Driver Name</th><th>Session Name</th><th>Radio</th></tr></thead><tbody>';
+
+        radioMessages.forEach(msg => {
+            htmlContent += '<tr>';
+            htmlContent += `<td>${msg.formatted_date || 'N/A'}</td>`;
+            htmlContent += `<td>${msg.driver_name}</td>`;
+            htmlContent += `<td>${msg.session_name}</td>`;
+            if (msg.recording_url) {
+                htmlContent += `<td><audio controls src="${msg.recording_url}"></audio></td>`;
+            } else {
+                htmlContent += '<td>No recording</td>';
+            }
+            htmlContent += '</tr>';
+        });
+
+        htmlContent += '</tbody></table>';
+    } else {
+        htmlContent = '<p class="text-muted">No team radio.</p>';
+    }
+    radioContainer.html(htmlContent);
+}
+
+            // Event listener for session selection change
+            sessionSelect.on('change', async function() { // Added async here
+                const selectedSessionKey = $(this).val();
+                stopLiveUpdates(); // Stop live updates when session changes
+                if (selectedSessionKey) {
+                    await loadDrivers(selectedSessionKey); // Load drivers for the selected session
+                    // Automatically select "Driver (All)" and load radio messages
+                    driverSelect.val(""); // Set value to empty string for "Driver (All)"
+                    loadTeamRadio(selectedSessionKey, null); // Load all drivers' radio
+                    radioContainer.empty(); // Clear radio messages
+                    showInfo(''); // Clear any info/error messages
+                } else {
+                    // Reset driver dropdown and disable if no session is selected
+                    driverSelect.empty().append('<option value="">Driver (All)</option>').prop('disabled', true);
+                    radioContainer.empty(); // Clear radio messages
+                    showInfo(''); // Clear any info/error messages
+                }
+            });
+
+            // Event listener for driver selection change
+            driverSelect.on('change', function() {
+                const selectedDriver = $(this).val(); // Can be empty string for "All Drivers"
+                const selectedSessionKey = sessionSelect.val();
+                stopLiveUpdates(); // Stop live updates when driver changes
+                if (selectedSessionKey) { // Only load if a session is selected
+                    // Pass null if "All Drivers" is selected (empty string value)
+                    loadTeamRadio(selectedSessionKey, selectedDriver || null);
+                } else {
+                    radioContainer.empty(); // Clear radio messages
+                    showInfo(''); // Clear any info/error messages
+                }
+            });
+
+            // Initial load of sessions when the page is ready
+            loadSessions();
+        });
+    </script>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5 rounded-pill">
+        <div class="container-fluid">
+            <button class="navbar-toggler mx-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('live_page') }}">Live</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('laps') }}">Lap Time Table</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('teamradio') }}">Team radio</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    </nav>
+    <div class="container">
+
+        <h2>F1 Team Radio</h2>
+
+        <form id="session-form" method="post">
+            <div class="session-select-container">
+
+                <select id="session_select" name="session_key" class="form-select">
+                    <option value="">Session</option>
+                </select>
+            </div>
+        </form>
+
+        <div class="form-group">
+            <select id="driver_select" class="form-select" disabled>
+                <option value="">Driver (All)</option>
+            </select>
+        </div>
+
+        <div id="error-message" class="error-message" style="display:none;"></div>
+        <div id="info-message" class="info-message" style="display:none;"></div>
+
+        <div id="loading" class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span class="ms-2">Loading team radio...</span>
+        </div>
+
+        <div id="lap-table-container" class="lap-table-container"></div>
+    </div>
+
+</body>
+<footer class="main-footer">
+    <div class="footer-content">
+        <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='logo_main.png') }}" alt="Unif1ed Logo" class="footer-logo">
+        </a>
+        <p class="footer-tagline">...unified F1 data</p>
+        <div class="footer-links">
+            <a href="https://openf1.org/" target="_blank" class="footer-link">OpenF1</a>
+            <span class="link-separator">|</span>
+            <a href="https://docs.fastf1.dev/" target="_blank" class="footer-link">FastF1</a>
+        </div>
+        
+    </div>
+</footer>
+</html>

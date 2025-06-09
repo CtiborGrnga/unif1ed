@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="sk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unif1ed - Race Control</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='logo_main.png') }}" alt="Unif1ed Logo" class="logo-img">
+    </a>
+</head>
+
+<body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Vyber DOM prvky pomocou jQuery
+            const sessionSelect = $('#session_select');
+            const eventsContainer = $('#events-table-container');
+            const loadingSpinner = $('#loading');
+            const errorMessageDiv = $('#error-message');
+            const infoMessageDiv = $('#info-message');
+
+            let sessionsData = {}; // Na uloženie detailov o session vrátane 'is_live' statusu
+
+            /**
+             * Zobrazí načítavací spinner a vymaže predchádzajúce správy/dáta.
+             */
+            function showLoading() {
+                loadingSpinner.show();
+                eventsContainer.empty();
+                errorMessageDiv.hide();
+                infoMessageDiv.hide();
+            }
+
+            /**
+             * Skryje načítavací spinner.
+             */
+            function hideLoading() {
+                loadingSpinner.hide();
+            }
+
+            /**
+             * Zobrazí chybovú správu používateľovi.
+             * @param {string} message - Chybová správa na zobrazenie.
+             */
+            function showError(message) {
+                errorMessageDiv.text(message).show();
+                infoMessageDiv.hide();
+            }
+
+            /**
+             * Zobrazí informačnú správu používateľovi.
+             * @param {string} message - Informačná správa na zobrazenie.
+             */
+            function showInfo(message) {
+                infoMessageDiv.text(message).show();
+                errorMessageDiv.hide();
+            }
+
+            /**
+             * Pomocná funkcia na načítanie JSON dát z URL s ošetrením chýb.
+             * @param {string} url - URL na načítanie.
+             * @param {object} options - Možnosti Fetch API (napr. method, headers, body).
+             * @returns {Promise<object>} - Promise, ktorý sa vyrieši s JSON dátami.
+             * @throws {Error} - Vyvolá chybu, ak sieťová požiadavka zlyhá alebo odpoveď nie je OK.
+             */
+            async function fetchJson(url, options = {}) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP chyba ${response.status}: ${errorText || 'Neznáma chyba'}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`Chyba pri načítaní pre ${url}:`, error);
+                    throw error;
+                }
+            }
+
+            /**
+             * Načíta všetky dostupné F1 sessions z backendu a naplní dropdown pre session.
+             * Uloží detaily o session, vrátane statusu 'is_live'.
+             */
+            async function loadSessions() {
+                showLoading();
+                try {
+                    // Používame /get_sessions namiesto /get_sessions_for_radio, ak nepotrebujeme všetky sessions
+                    const data = await fetchJson('/get_sessions_for_radio');
+                    populateSessionDropdown(data.sessions);
+                } catch (error) {
+                    showError('Nepodarilo sa načítať sessions. Skúste to prosím neskôr.');
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            /**
+             * Naplní dropdown pre session dátami v opačnom poradí (najnovšie ako prvé).
+             * Uloží detaily o session do objektu `sessionsData`.
+             * @param {Array<object>} sessions - Pole objektov session.
+             */
+            function populateSessionDropdown(sessions) {
+                sessionSelect.empty();
+                sessionSelect.append('<option value="">Session</option>');
+                sessionsData = {}; // Vyčisti predchádzajúce dáta o session
+                if (sessions && Array.isArray(sessions)) {
+                    const reversedSessions = [...sessions].reverse();
+                    reversedSessions.forEach(session => {
+                        const sessionKey = session.session_key;
+                        sessionsData[sessionKey] = session; // Ulož dáta o session
+                        const date = session.date ? new Date(session.date).toLocaleDateString() : '';
+                        const label = `${session.year} - ${session.location} - ${session.country_name} - ${session.session_name} ${session.is_live ? '(Live)' : ''}`;
+                        sessionSelect.append(`<option value="${sessionKey}">${label}</option>`);
+                    });
+                } else {
+                    console.error("Neplatné dáta o sessions prijaté funkciou populateSessionDropdown:", sessions);
+                    showError("Chyba pri načítaní sessions.");
+                }
+            }
+
+            /**
+             * Načíta správy z race control pre vybranú session.
+             * @param {string} sessionKey - Kľúč vybranej session.
+             */
+            async function loadRaceControlEvents(sessionKey) {
+                if (!sessionKey) {
+                    showError('Session musí byť vybraná.');
+                    return;
+                }
+
+                showLoading();
+
+                try {
+                    const formData = new FormData();
+                    formData.append('session_key', sessionKey);
+
+                    const data = await fetchJson('/get_race_control_events', {
+                        method: 'POST',
+                        body: new URLSearchParams(formData).toString(),
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    });
+
+                    if (data && data.events) {
+                        if (data.events.length === 0) {
+                            showInfo('Nenašli sa žiadne správy z race control pre túto session.');
+                            displayRaceControlEvents([]);
+                        } else {
+                            displayRaceControlEvents(data.events);
+                        }
+                    } else if (data && data.error) {
+                        showError(`Chyba pri načítaní race control správ: ${data.error}`);
+                        displayRaceControlEvents([]);
+                    } else {
+                        console.error("Neplatné race control dáta prijaté:", data);
+                        showError('Neočakávaná odpoveď pri načítaní race control.');
+                        displayRaceControlEvents([]);
+                    }
+                } catch (error) {
+                    console.error('Chyba v loadRaceControlEvents:', error);
+                    showError(error.message || 'Neočakávaná chyba pri načítaní race control.');
+                    displayRaceControlEvents([]);
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            /**
+             * Zobrazí správy z race control v kontajneri ako tabuľku.
+             * @param {Array<object>} events - Pole objektov udalostí race control.
+             */
+            function displayRaceControlEvents(events) {
+                let htmlContent = '';
+                if (events && Array.isArray(events) && events.length > 0) {
+                    htmlContent += '<table class="table table-striped table-hover table-sm"><thead><tr><th>Date and time</th><th>Category</th><th>Message</th><th>Flag</th><th>Type</th><th>Sector</th></tr></thead><tbody>';
+
+                    events.forEach(event => {
+                        htmlContent += '<tr>';
+                        htmlContent += `<td>${event.date || '-'}</td>`;
+                        htmlContent += `<td>${event.category || '-'}</td>`;
+                        htmlContent += `<td>${event.message || '-'}</td>`;
+                        htmlContent += `<td>${event.flag || '-'}</td>`;
+                        htmlContent += `<td>${event.scope || '-'}</td>`;
+                        htmlContent += `<td>${event.sector || '-'}</td>`;
+                        htmlContent += '</tr>';
+                    });
+
+                    htmlContent += '</tbody></table>';
+                } else {
+                    htmlContent = '<p class="text-muted">Žiadne správy z race control.</p>';
+                }
+                eventsContainer.html(htmlContent);
+            }
+
+            // Event listener pre zmenu výberu session
+            sessionSelect.on('change', async function() {
+                const selectedSessionKey = $(this).val();
+                if (selectedSessionKey) {
+                    await loadRaceControlEvents(selectedSessionKey);
+                    showInfo(''); // Vymaž všetky info/error správy
+                } else {
+                    eventsContainer.empty(); // Vymaž správy
+                    showInfo(''); // Vymaž všetky info/error správy
+                }
+            });
+
+            // Počiatočné načítanie sessions, keď je stránka pripravená
+            loadSessions();
+        });
+    </script>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5 rounded-pill">
+        <div class="container-fluid">
+            <button class="navbar-toggler mx-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('live_page') }}">Live</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('laps') }}">Lap Time Table</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('teamradio') }}">Team radio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('race_control_page') }}">Race Control</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    </nav>
+    <div class="container">
+
+        <h2>F1 Race Control Messages</h2>
+
+        <form id="session-form" method="post">
+            <div class="session-select-container">
+                <select id="session_select" name="session_key" class="form-select">
+                    <option value="">Session</option>
+                </select>
+            </div>
+        </form>
+
+        <div id="error-message" class="error-message" style="display:none;"></div>
+        <div id="info-message" class="info-message" style="display:none;"></div>
+
+        <div id="loading" class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Načítavam Race Control správy...</span>
+            </div>
+            <span class="ms-2">Načítavam Race Control správy...</span>
+        </div>
+
+        <div id="events-table-container" class="lap-table-container"></div>
+    </div>
+
+</body>
+<footer class="main-footer">
+    <div class="footer-content">
+        <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='logo_main.png') }}" alt="Unif1ed Logo" class="footer-logo">
+        </a>
+        <p class="footer-tagline">...unified F1 data</p>
+        <div class="footer-links">
+            <a href="https://openf1.org/" target="_blank" class="footer-link">OpenF1</a>
+            <span class="link-separator">|</span>
+            <a href="https://docs.fastf1.dev/" target="_blank" class="footer-link">FastF1</a>
+        </div>
+    </div>
+</footer>
+</html>
